@@ -1,0 +1,83 @@
+name: Train
+inputs:
+- {name: n_estimators, type: Integer}
+- {name: depth, type: Integer}
+- {name: random_state, type: Integer}
+- {name: mlflow_tracking_uri, type: String}
+- {name: mlflow_experiment_name, type: String}
+- {name: model_name, type: String}
+- {name: training_data, type: CSV}
+- {name: training_labels, type: CSV}
+- {name: test_data, type: CSV}
+- {name: test_labels, type: CSV}
+implementation:
+  container:
+    image: python:3.7
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'mlflow' 'pandas' 'sklearn' 'boto3' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3
+      -m pip install --quiet --no-warn-script-location 'mlflow' 'pandas' 'sklearn'
+      'boto3' --user) && "$0" "$@"
+    - python3
+    - -u
+    - -c
+    - "def train(\n    n_estimators, \n    depth, \n    random_state, \n    mlflow_tracking_uri,\n\
+      \    mlflow_experiment_name,\n    model_name,\n    training_data_path, \n  \
+      \  training_labels_path, \n    test_data_path,\n    test_labels_path\n    ):\n\
+      \n    import pandas as pd\n    from sklearn.ensemble import RandomForestClassifier\n\
+      \n    x_train = pd.read_csv(training_data_path)\n    y_train = pd.read_csv(training_labels_path)['0'].tolist()\n\
+      \n    x_test = pd.read_csv(test_data_path)\n    y_test = pd.read_csv(test_labels_path)['0'].tolist()\n\
+      \n    print(x_train, y_train, x_test, y_test)\n    model_clf = RandomForestClassifier(n_estimators=n_estimators,\
+      \ max_depth=depth, random_state=random_state)\n\n    # Train the Random Forest\
+      \ algorithm\n    model_clf.fit(x_train, y_train)\n\n    # validate\n    y_pred\
+      \ = model_clf.predict(x_test)\n\n    # calculate accuracy\n    total = len(y_pred)\n\
+      \    wrong = 0\n    for pred, truth in zip(y_pred, y_test):\n        wrong +=\
+      \ 1 if pred != truth else 0\n\n    accuracy = ((total - wrong)/total) * 100.0\n\
+      \n    ########## log model ####################\n    import mlflow\n\n    mlflow.set_tracking_uri(mlflow_tracking_uri)\n\
+      \    mlflow.set_experiment(mlflow_experiment_name)\n\n    with mlflow.start_run()\
+      \ as run:\n        mlflow.log_param(\"n_estimators\", n_estimators)\n      \
+      \  mlflow.log_param(\"max_depth\", depth)\n        mlflow.log_param(\"random_state\"\
+      , random_state)\n        mlflow.log_metric(\"accuracy\", accuracy)\n\n     \
+      \   mlflow.sklearn.log_model(model_clf, \"model\", registered_model_name=model_name)\n\
+      \n        model_artifact_location = run.info.artifact_uri + \"/model\"\n   \
+      \     logged_model = 'runs:/'+run.info.run_id+'/model'\n\n    return { 'accuracy':\
+      \ accuracy, 'model_path': logged_model }\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Train',\
+      \ description='')\n_parser.add_argument(\"--n-estimators\", dest=\"n_estimators\"\
+      , type=int, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --depth\", dest=\"depth\", type=int, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--random-state\", dest=\"random_state\", type=int, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--mlflow-tracking-uri\"\
+      , dest=\"mlflow_tracking_uri\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--mlflow-experiment-name\", dest=\"mlflow_experiment_name\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --model-name\", dest=\"model_name\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--training-data\", dest=\"training_data_path\", type=str,\
+      \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--training-labels\"\
+      , dest=\"training_labels_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--test-data\", dest=\"test_data_path\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--test-labels\", dest=\"\
+      test_labels_path\", type=str, required=True, default=argparse.SUPPRESS)\n_parsed_args\
+      \ = vars(_parser.parse_args())\n\n_outputs = train(**_parsed_args)\n"
+    args:
+    - --n-estimators
+    - {inputValue: n_estimators}
+    - --depth
+    - {inputValue: depth}
+    - --random-state
+    - {inputValue: random_state}
+    - --mlflow-tracking-uri
+    - {inputValue: mlflow_tracking_uri}
+    - --mlflow-experiment-name
+    - {inputValue: mlflow_experiment_name}
+    - --model-name
+    - {inputValue: model_name}
+    - --training-data
+    - {inputPath: training_data}
+    - --training-labels
+    - {inputPath: training_labels}
+    - --test-data
+    - {inputPath: test_data}
+    - --test-labels
+    - {inputPath: test_labels}

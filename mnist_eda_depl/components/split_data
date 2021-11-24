@@ -1,0 +1,55 @@
+name: Split data
+inputs:
+- {name: input_data, type: CSV}
+outputs:
+- {name: output_training_data, type: CSV}
+- {name: output_training_labels, type: CSV}
+- {name: output_test_data, type: CSV}
+- {name: output_test_labels, type: CSV}
+implementation:
+  container:
+    image: python:3.7-slim
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' --user) && "$0" "$@"
+    - python3
+    - -u
+    - -c
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef split_data(\n    input_data_path, \n    output_training_data_path, \n\
+      \    output_training_labels_path, \n    output_test_data_path, \n    output_test_labels_path\n\
+      ):\n    import pandas as pd\n    df_train = df = pd.read_csv(input_data_path,\
+      \ sep=',', header=0)\n\n    x = df_train.iloc[:, 1:]\n    y = df_train['label'].tolist()\n\
+      \n    # # Select 10000 rows data as a testing dataset\n    x_test = x.iloc[0:10000,\
+      \ :].values.astype('float32') # all pixel values \n    y_test = y[0:10000] #\
+      \ Select label for testing data\n    x_train = x.iloc[10000:, :].values.astype('float32')\
+      \ # all pixel values \n    y_train = y[10000:]\n\n    x_train.to_csv(output_training_data_path)\n\
+      \    y_train.to_csv(output_training_labels_path)\n\n    x_test.to_csv(output_test_data_path)\n\
+      \    y_test.to_csv(output_test_labels_path)\n    print(\"ALL DONE\")\n\nimport\
+      \ argparse\n_parser = argparse.ArgumentParser(prog='Split data', description='')\n\
+      _parser.add_argument(\"--input-data\", dest=\"input_data_path\", type=str, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--output-training-data\"\
+      , dest=\"output_training_data_path\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--output-training-labels\"\
+      , dest=\"output_training_labels_path\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--output-test-data\"\
+      , dest=\"output_test_data_path\", type=_make_parent_dirs_and_return_path, required=True,\
+      \ default=argparse.SUPPRESS)\n_parser.add_argument(\"--output-test-labels\"\
+      , dest=\"output_test_labels_path\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+      \n_outputs = split_data(**_parsed_args)\n"
+    args:
+    - --input-data
+    - {inputPath: input_data}
+    - --output-training-data
+    - {outputPath: output_training_data}
+    - --output-training-labels
+    - {outputPath: output_training_labels}
+    - --output-test-data
+    - {outputPath: output_test_data}
+    - --output-test-labels
+    - {outputPath: output_test_labels}

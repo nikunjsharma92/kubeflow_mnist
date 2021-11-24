@@ -1,0 +1,44 @@
+name: Normalize data
+inputs:
+- {name: training_data, type: CSV}
+- {name: test_data, type: CSV}
+outputs:
+- {name: normalized_training_data, type: CSV}
+- {name: normalized_test_data, type: CSV}
+implementation:
+  container:
+    image: python:3.7-slim
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' --user) && "$0" "$@"
+    - python3
+    - -u
+    - -c
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef normalize_data(\n    training_data_path, \n    test_data_path, \n    normalized_training_data,\
+      \ \n    normalized_test_data\n):\n    import pandas as pd\n\n    x_train = pd.read_csv(training_data_path)\n\
+      \    x_test = pd.read_csv(test_data_path)\n\n    x_train = x_train/255.0\n \
+      \   x_test = x_test/255.0\n\n    x_train.to_csv(normalized_training_data, index=False)\n\
+      \    x_test.to_csv(normalized_test_data, index=False)\n\n    print(\"ALL DONE\"\
+      )\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Normalize data',\
+      \ description='')\n_parser.add_argument(\"--training-data\", dest=\"training_data_path\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --test-data\", dest=\"test_data_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--normalized-training-data\", dest=\"normalized_training_data\"\
+      , type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--normalized-test-data\", dest=\"normalized_test_data\"\
+      , type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)\n\
+      _parsed_args = vars(_parser.parse_args())\n\n_outputs = normalize_data(**_parsed_args)\n"
+    args:
+    - --training-data
+    - {inputPath: training_data}
+    - --test-data
+    - {inputPath: test_data}
+    - --normalized-training-data
+    - {outputPath: normalized_training_data}
+    - --normalized-test-data
+    - {outputPath: normalized_test_data}
